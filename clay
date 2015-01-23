@@ -3,7 +3,7 @@ import os, sys, argparse, subprocess
 import yaml
 from git import RemoteProgress, Repo, InvalidGitRepositoryError
 
-config = yaml.load(open('./.shiiyut.yml'))
+config = yaml.load(open('./.clay.yml'))
 
 class Command(object):
     @classmethod
@@ -38,14 +38,50 @@ class Install(Command):
                 repo = clone_repo(name, url)
             run_local_yaml_scripts(path, 'install')
 
-ALL_COMMANDS = [Install]
+class Update(Command):
+    @classmethod
+    def build_arg_parser(cls, subparsers):
+        parser = subparsers.add_parser(
+            'update',
+            help='Update repo working copies')
+        return parser
+
+    def __init__(self, args):
+        pass
+
+    def run(self):
+        for name, url in config['repos'].iteritems():
+            path = get_repo_path(name)
+            if os.path.exists(path):
+                try:
+                    repo = Repo(path)
+                    if repo.active_branch.name != 'master':
+                        print '"{}" is not currently on the master branch (Current branch: {}). Skipping update.'.format(name, repo.active_branch)
+                        continue
+
+                    if repo.is_dirty():
+                        print '"{}" has uncommitted changes (Current branch: {}). Skipping.'.format(name, repo.active_branch)
+                        continue
+
+                    print 'Pulling {}'.format(name)
+                    repo.remotes.origin.pull(progress=MyProgressPrinter())
+                except InvalidGitRepositoryError:
+                    print '  A working directory exists for "{}" at {} but it does not appear to contain a valid Git repository. Skipping.'.format(name, path)
+                    continue
+            else:
+                print '"{}" does not appear to be checked out locally. Run install to clone it.'.format(name)
+                continue
+            run_local_yaml_scripts(path, 'install')
+
+ALL_COMMANDS = [Install, Update]
 
 class MyProgressPrinter(RemoteProgress):
+    BAR = 'SHIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIYYUUT!'
     def update(self, op_code, cur_count, max_count=None, message=''):
         if max_count:
             progress = (100 / (max_count)) * cur_count
             sys.stdout.write('\r[')
-            sys.stdout.write('{0}'.format('#' * (int(progress * 50)/100)).ljust(50, ' '))
+            sys.stdout.write('{0}'.format(self.BAR[:int(progress * 50)/100]).ljust(50, ' '))
             sys.stdout.write('] {:3.4f}%'.format(progress))
             sys.stdout.flush()
 
@@ -89,12 +125,6 @@ def build_parser():
         subparser.set_defaults(command_class=command_class)
     return parser
 
-def main():
-    for name, url in REPOS.iteritems():
-        try:
-            update_repo(name)
-        except Exception as e:
-            clone_repo(name, url)
 
 if __name__ == '__main__':
     parser = build_parser()
