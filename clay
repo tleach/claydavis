@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import os, sys, argparse, subprocess
 import yaml
-from git import RemoteProgress, Repo, InvalidGitRepositoryError
+from git import RemoteProgress, Repo, InvalidGitRepositoryError, GitCommandError
 
 config = yaml.load(open('./.clay.yml'))
 
@@ -35,7 +35,11 @@ class Install(Command):
                     print '  A working directory exists for "{}" at {} but it does not appear to contain a valid Git repository. Skipping.'.format(name, path)
                     continue
             else:
-                repo = clone_repo(name, url)
+                try:
+                    repo = clone_repo(name, url)
+                except GitCommandError as e:
+                    print '  Error:', e
+                    continue
             run_local_yaml_scripts(path, 'install')
 
 class Update(Command):
@@ -76,13 +80,26 @@ class Update(Command):
 ALL_COMMANDS = [Install, Update]
 
 class MyProgressPrinter(RemoteProgress):
+    OP_DESCRIPTIONS = {
+        RemoteProgress.COUNTING:      '    counting   ',
+        RemoteProgress.COMPRESSING:   '    compressing',
+        RemoteProgress.WRITING:       '    writing    ',
+        RemoteProgress.RECEIVING:     '    receiving  ',
+        RemoteProgress.RESOLVING:     '    resolving  '
+    }
     BAR = 'SHIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIYYUUT!'
     def update(self, op_code, cur_count, max_count=None, message=''):
+        stage = op_code & self.STAGE_MASK
+        op = op_code & self.OP_MASK
+        if stage == self.END:
+            print " done!"
+            return
+
         if max_count:
             progress = (100 / (max_count)) * cur_count
-            sys.stdout.write('\r[')
+            sys.stdout.write('\r{} ['.format(self.OP_DESCRIPTIONS[op]))
             sys.stdout.write('{0}'.format(self.BAR[:int(progress * 50)/100]).ljust(50, ' '))
-            sys.stdout.write('] {:3.4f}%'.format(progress))
+            sys.stdout.write('] {:3.1f}%'.format(progress))
             sys.stdout.flush()
 
 def run_local_yaml_scripts(repo_path, command):
