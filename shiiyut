@@ -18,7 +18,7 @@ class Install(Command):
     def build_arg_parser(cls, subparsers):
         parser = subparsers.add_parser(
             'install',
-            help='Install missing GameChanger repos')
+            help='Install missing repos')
         return parser
 
     def __init__(self, args):
