@@ -4,4 +4,6 @@
 
 Clay Davis is the Maryland who has his fingers in all the pies getting a little bit of action from everything that's going down.
 
-In the world of software development, Clay Davis likes to make sure he can control all his repos easily using YAML.
+In the world of software development, Clay Davis likes to make sure he can control all his repos easily... using YAML.
+
+IN DEVELOPMENT
