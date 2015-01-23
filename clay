@@ -91,7 +91,7 @@ class MyProgressPrinter(RemoteProgress):
         RemoteProgress.RECEIVING:     '    receiving  ',
         RemoteProgress.RESOLVING:     '    resolving  '
     }
-    BAR = 'SHIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIYYUUT!'
+    BAR = 'SHEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEITT!'
     def update(self, op_code, cur_count, max_count=None, message=''):
         stage = op_code & self.STAGE_MASK
         op = op_code & self.OP_MASK
