@@ -25,6 +25,7 @@ class Install(Command):
         pass
 
     def run(self):
+        services = ()
         for name, url in config['repos'].iteritems():
             path = get_repo_path(name)
             if os.path.exists(path):
@@ -40,7 +41,8 @@ class Install(Command):
                 except GitCommandError as e:
                     print '  Error:', e
                     continue
-            run_local_yaml_scripts(path, 'install')
+            run_local_yaml_scripts(path, 'install', services)
+        ensure_services(services)
 
 class Update(Command):
     @classmethod
@@ -54,6 +56,7 @@ class Update(Command):
         pass
 
     def run(self):
+        services = set()
         for name, url in config['repos'].iteritems():
             path = get_repo_path(name)
             if os.path.exists(path):
@@ -75,7 +78,8 @@ class Update(Command):
             else:
                 print '"{}" does not appear to be checked out locally. Run install to clone it.'.format(name)
                 continue
-            run_local_yaml_scripts(path, 'install')
+            run_local_yaml_scripts(path, 'install', services)
+        ensure_services(services)
 
 ALL_COMMANDS = [Install, Update]
 
@@ -102,16 +106,36 @@ class MyProgressPrinter(RemoteProgress):
             sys.stdout.write('] {:3.1f}%'.format(progress))
             sys.stdout.flush()
 
-def run_local_yaml_scripts(repo_path, command):
+def ensure_services(services):
+    print "Ensuring services are installed..."
+    service_defs = config['services']
+    for service in services:
+        if subprocess.call(service_defs[service]['check'], shell=True):
+            try:
+                print "  Installing {}".format(service)
+                for command in service_defs[service]['install']:
+                    subprocess.check_call(command, shell=True)
+
+            except Exception as e:
+                print "  Error installing {}".format(service), e
+        else:
+            print '  {} is already installed'.format(service)
+
+def run_local_yaml_scripts(repo_path, command, services):
     local_yaml = get_local_yaml(repo_path)
     if local_yaml:
-        for script in local_yaml[command]:
-            try:
-                print '    Running "{}"'.format(script)
-                subprocess.check_call(script, shell=True, cwd=repo_path)
-            except Exception as e:
-                print "Error", e, "aborting..."
-                return
+        if command in local_yaml:
+            for script in local_yaml[command]:
+                try:
+                    print '    Running "{}"'.format(script)
+                    subprocess.check_call(script, shell=True, cwd=repo_path)
+                except Exception as e:
+                    print "Error", e, "aborting..."
+                    return
+
+        if 'services' in local_yaml:
+            for service in local_yaml['services']:
+                services.add(service)
 
 def get_local_yaml(repo_path):
     yaml_path = os.path.join(repo_path, '.local.yml')
